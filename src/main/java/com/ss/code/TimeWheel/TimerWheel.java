@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TimerWheel {
 
     public static void main(String[] args) {
-        TimerWheel timerWheel = new TimerWheel(64);
+        TimerWheel timerWheel = new TimerWheel(64,TimeUnit.MILLISECONDS,20L);
         timerWheel.start();
 
         timerWheel.scheduleTask(new Runnable() {
@@ -33,7 +33,9 @@ public class TimerWheel {
 
     private final int slotLength;
 
-    private final long tickDuration = 20L;
+    private  long tickDuration = 20L;
+
+    private  long tickDurationNano = 0;
 
     private TimeUnit tickUnit = TimeUnit.MILLISECONDS;
 
@@ -51,8 +53,11 @@ public class TimerWheel {
 
     private CountDownLatch startCountDownLatch = new CountDownLatch(1);
 
-    public TimerWheel(int length) {
+    public TimerWheel(int length,TimeUnit unit,Long tickDuration) {
         this.slotLength = length;
+        this.tickDuration = tickDuration;
+        this.tickUnit = unit;
+        this.tickDurationNano = unit.toNanos(tickDuration);
     }
 
     public void start() {
@@ -95,11 +100,11 @@ public class TimerWheel {
      class ScheduleThread extends Thread {
 
          private void waitTick() {
-             long deadLine = tickDuration * (tick + 1);
+             long deadLine = tickDurationNano * (tick + 1);
              try {
                  long current = System.nanoTime() - startTime;
                  long needSleepTime = (deadLine - current);
-
+//                 System.out.println("need sleep nano time:" + needSleepTime);
                  if (needSleepTime <= 0) {
                      return;
                  }
@@ -136,7 +141,7 @@ public class TimerWheel {
                   */
 //                 int slot_index = (int) (tick & (slotLength - 1));
 
-                 long calculated = task.getDeadLine() / tickUnit.toNanos(tickDuration);
+                 long calculated = task.getDeadLine() / tickDurationNano;
                  long round = (calculated - tick) / slotLength;
 
                  long ticks = Math.max(calculated, tick);
